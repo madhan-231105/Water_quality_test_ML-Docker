@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Water Quality Prediction</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            min-height: 100vh;
+        }
+        .container { max-width: 1000px; margin: auto; padding: 20px; }
+        h1, h2 { text-align: center; }
+        .card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(12px);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .input-group { display: flex; flex-direction: column; }
+        .label-row { display: flex; justify-content: space-between; font-size: 14px; }
+        .info { cursor: pointer; color: #00c6ff; }
+        .tooltip { display: none; font-size: 12px; color: #ddd; margin-bottom: 2px; }
+        .input-group:hover .tooltip { display: block; }
+        input { padding: 10px; border-radius: 8px; border: none; margin-top: 5px; background: white; color: #333; }
+        button { margin-top: 20px; padding: 12px; border: none; border-radius: 10px; background: #00c6ff; color: white; font-size: 16px; cursor: pointer; width: 100%; font-weight: bold; }
+        button:hover { background: #0072ff; }
+        #result { margin-top: 20px; text-align: center; font-size: 24px; font-weight: bold; }
+        .safe { color: #00ffae; text-shadow: 0 0 10px rgba(0,255,174,0.5); }
+        .danger { color: #ff4d4d; text-shadow: 0 0 10px rgba(255,77,77,0.5); }
+        .loader { display: none; margin: 10px auto; border: 5px solid #fff; border-top: 5px solid #00c6ff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        canvas { margin-top: 20px; background: white; border-radius: 10px; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { background: rgba(0, 198, 255, 0.2); color: #00c6ff; }
+        tr:hover { background: rgba(255,255,255,0.05); }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @media(max-width: 768px){ .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>💧 Water Quality Prediction</h1>
+
+    <div class="card">
+        <form id="predictionForm">
+            <div class="grid">
+                <div class="input-group">
+                    <div class="label-row"><span>pH</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe: 6.5–8.5</div>
+                    <input type="number" step="any" name="ph" value="7.2" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Hardness</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe: 60-200 mg/L</div>
+                    <input type="number" step="any" name="Hardness" value="150" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Solids</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">TDS < 500 mg/L</div>
+                    <input type="number" step="any" name="Solids" value="20000" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Chloramines</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe: 0-4 mg/L</div>
+                    <input type="number" step="any" name="Chloramines" value="7.3" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Sulfate</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe < 250 mg/L</div>
+                    <input type="number" step="any" name="Sulfate" value="333" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Conductivity </span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe: 200-800 µS/cm</div>
+                    <input type="number" step="any" name="Conductivity" value="400" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Organic Carbon</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe < 10 mg/L</div>
+                    <input type="number" step="any" name="Organic_carbon" value="15" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Trihalomethanes</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe < 80 µg/L</div>
+                    <input type="number" step="any" name="Trihalomethanes" value="66" required>
+                </div>
+                <div class="input-group">
+                    <div class="label-row"><span>Turbidity</span><span class="info">ℹ️</span></div>
+                    <div class="tooltip">Safe < 5 NTU</div>
+                    <input type="number" step="any" name="Turbidity" value="4.5" required>
+                </div>
+            </div>
+            <button type="submit">🚀 Analyze Water Quality</button>
+        </form>
+
+        <div class="loader" id="loader"></div>
+        <div id="result"></div>
+        <canvas id="chart"></canvas>
+    </div>
+
+    <div class="card">
+        <h2>📜 Recent Prediction History (IST)</h2>
+        <div class="history-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>pH</th>
+                        <th>Solids</th>
+                        <th>Result</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr><td colspan="5" style="text-align:center;">Loading history...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const form = document.getElementById("predictionForm");
+const resultDiv = document.getElementById("result");
+const loader = document.getElementById("loader");
+const historyBody = document.getElementById("historyBody");
+let chart;
+
+async function updateHistory() {
+    try {
+        const response = await fetch("/history");
+        const data = await response.json();
+        
+        if (!data || data.length === 0) {
+            historyBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No records found.</td></tr>`;
+            return;
+        }
+
+        historyBody.innerHTML = data.map(item => {
+            // Parse the timestamp string from backend
+            const dateObj = new Date(item.timestamp);
+            
+            // Format for Indian Timezone explicitly
+            const date = dateObj.toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+
+            const statusClass = item.prediction === "Safe" ? "safe" : "danger";
+
+            return `
+                <tr>
+                    <td>${date}</td>
+                    <td>${item.input.ph.toFixed(2)}</td>
+                    <td>${item.input.Solids.toFixed(0)}</td>
+                    <td class="${statusClass}"><strong>${item.prediction}</strong></td>
+                    <td>${(item.confidence * 100).toFixed(1)}%</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        historyBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Failed to load history.</td></tr>`;
+    }
+}
+
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const data = {};
+    const labels = [];
+    const values = [];
+
+    formData.forEach((value, key) => {
+        data[key] = parseFloat(value);
+        labels.push(key);
+        values.push(parseFloat(value));
+    });
+
+    loader.style.display = "block";
+    resultDiv.innerHTML = "";
+
+    try {
+        const response = await fetch("/predict", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        loader.style.display = "none";
+
+        if(result.prediction === "Safe"){
+            resultDiv.innerHTML = `<span class="safe">✅ Safe to Drink (${(result.confidence * 100).toFixed(1)}%)</span>`;
+        } else {
+            resultDiv.innerHTML = `<span class="danger">❌ Not Safe (${(result.confidence * 100).toFixed(1)}%)</span>`;
+        }
+
+        if(chart) chart.destroy();
+        chart = new Chart(document.getElementById("chart"), {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Sample Metrics",
+                    data: values,
+                    backgroundColor: '#00c6ff'
+                }]
+            }
+        });
+
+        updateHistory();
+    } catch (error) {
+        loader.style.display = "none";
+        resultDiv.innerHTML = "⚠️ Error!";
+    }
+});
+
+window.onload = updateHistory;
+</script>
+</body>
+</html>
